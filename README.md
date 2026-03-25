@@ -93,72 +93,193 @@ Use ferramentas como **Postman**, **Insomnia** ou o próprio navegador para inte
 
 ---
 
-### 🔍 Exemplos de Uso
+# Roteiro de Testes — API Flask de Jogos
 
-<details>
-<summary><b>GET /jogos</b> — Listar todos os jogos</summary>
+Testes manuais utilizando `curl` para validar todos os endpoints da API.
 
-```http
-GET http://127.0.0.1:5000/jogos
+> **Pré-requisito:** servidor Flask rodando em `http://127.0.0.1:5000`
+
+---
+
+## GET — Listar todos os jogos
+
+Retorna um array JSON com todos os registros cadastrados.
+
+```bash
+curl -X GET http://127.0.0.1:5000/jogos \
+  -H "Content-Type: application/json"
 ```
 
-</details>
+**Resposta esperada:** `200 OK`
 
-<details>
-<summary><b>GET /jogos/&lt;id&gt;</b> — Buscar um jogo específico</summary>
-
-```http
-GET http://127.0.0.1:5000/jogos/1
+```json
+[
+  {
+    "id": 1,
+    "jogo": "The Last of Us",
+    "autor": "Naughty Dog",
+    "ano": 2013,
+    "preco": 149.9,
+    "data_cadastro": "2024-01-01"
+  }
+]
 ```
 
-</details>
+---
 
-<details>
-<summary><b>POST /adicionarjogo</b> — Adicionar um novo jogo</summary>
+## GET — Buscar jogo por ID (encontrado)
 
-```http
-POST http://127.0.0.1:5000/adicionarjogo
-Content-Type: application/json
+Retorna um único registro pelo ID informado.
+
+```bash
+curl -X GET http://127.0.0.1:5000/jogos/1 \
+  -H "Content-Type: application/json"
 ```
+
+**Resposta esperada:** `200 OK`
 
 ```json
 {
-  "jogo": "God of War",
-  "autor": "David Jaffe",
-  "ano": 2005,
-  "preco": 99.99
+  "id": 1,
+  "jogo": "The Last of Us",
+  "autor": "Naughty Dog",
+  "ano": 2013,
+  "preco": 149.9,
+  "data_cadastro": "2024-01-01"
 }
 ```
 
-</details>
+---
 
-<details>
-<summary><b>PUT /jogos/&lt;id&gt;</b> — Atualizar um jogo</summary>
+## GET — Buscar jogo por ID (não encontrado)
 
-```http
-PUT http://127.0.0.1:5000/jogos/1
-Content-Type: application/json
+Deve retornar erro quando o ID não existe no banco.
+
+```bash
+curl -X GET http://127.0.0.1:5000/jogos/9999 \
+  -H "Content-Type: application/json"
 ```
+
+**Resposta esperada:** `404 Not Found`
 
 ```json
 {
-  "jogo": "God of War",
-  "autor": "David Jaffe",
-  "ano": 2005,
-  "preco": 79.99
+  "erro": "Jogo não encontrado"
 }
 ```
 
-</details>
+---
 
-<details>
-<summary><b>DELETE /jogos/&lt;id&gt;</b> — Remover um jogo</summary>
+## POST — Adicionar novo jogo
 
-```http
-DELETE http://127.0.0.1:5000/jogos/1
+Insere um novo registro no banco de dados.
+
+```bash
+curl -X POST http://127.0.0.1:5000/adicionarjogo \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jogo": "The Last of Us",
+    "autor": "Naughty Dog",
+    "ano": 2013,
+    "preco": 149.90
+  }'
 ```
 
-</details>
+**Resposta esperada:** `201 Created`
+
+```json
+{
+  "mensagem": "Jogo adicionado com sucesso!"
+}
+```
+
+---
+
+## PUT — Atualizar jogo por ID (encontrado)
+
+Altera todos os campos de um registro existente.
+
+```bash
+curl -X PUT http://127.0.0.1:5000/jogos/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jogo": "The Last of Us Part I",
+    "autor": "Naughty Dog",
+    "ano": 2022,
+    "preco": 249.90
+  }'
+```
+
+**Resposta esperada:** `200 OK`
+
+```json
+{
+  "mensagem": "Jogo atualizado com sucesso!"
+}
+```
+
+---
+
+## PUT — Atualizar jogo por ID (não encontrado)
+
+Deve retornar erro quando o ID informado não existe.
+
+```bash
+curl -X PUT http://127.0.0.1:5000/jogos/9999 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jogo": "Inexistente",
+    "autor": "Ninguém",
+    "ano": 2000,
+    "preco": 0
+  }'
+```
+
+**Resposta esperada:** `404 Not Found`
+
+```json
+{
+  "erro": "Jogo não encontrado"
+}
+```
+
+---
+
+## DELETE — Remover jogo por ID (encontrado)
+
+Exclui o registro e confirma com o nome do jogo removido.
+
+```bash
+curl -X DELETE http://127.0.0.1:5000/jogos/1 \
+  -H "Content-Type: application/json"
+```
+
+**Resposta esperada:** `200 OK`
+
+```json
+{
+  "mensagem": "Jogo 'The Last of Us' removido!"
+}
+```
+
+---
+
+## DELETE — Remover jogo por ID (não encontrado)
+
+Deve retornar erro quando o ID não existe no banco.
+
+```bash
+curl -X DELETE http://127.0.0.1:5000/jogos/9999 \
+  -H "Content-Type: application/json"
+```
+
+**Resposta esperada:** `404 Not Found`
+
+```json
+{
+  "erro": "Jogo não encontrado"
+}
+```
 
 ---
 
