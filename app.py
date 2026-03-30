@@ -1,100 +1,111 @@
 from flask import Flask, jsonify, request
-import sqlite3
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 
-def executar_query(query, *args, fetch=False, commit=False):
-    conn = sqlite3.connect('jogos.db')
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    resultado = None
-    
-    try:
-        cursor.execute(query, args)
-        
-        if commit:
-            conn.commit()
-        if fetch:
-            resultado = cursor.fetchall()
-    finally:
-        conn.close()
-    
-    return resultado
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///jogos.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
-""" GET (Listar Todos): Retornar uma lista JSON de todos os registros.GET (Buscar por ID): Retornar apenas um registro específico ou erro 404. """
+# Criação do modelo de ORM
+class Jogo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    jogo = db.Column(db.String(100), nullable=False)
+    autor = db.Column(db.String(100))
+    ano = db.Column(db.Integer, nullable=False)
+    preco = db.Column(db.Float, nullable=False)
 
+# Criação automática das tabelas
+with app.app_context():
+    db.create_all()
+
+# GET 
 @app.route('/jogos', methods=['GET'])
 @app.route('/jogos/<int:id>', methods=['GET'])
+def gerenciar_jogos(id=None):
 
-def buscar_jogo(id=None):
+    # Busca por ID usando ORM
     if id:
-        jogo = executar_query("SELECT * FROM jogos WHERE id = ? ", id, fetch=True)
-        if jogo: 
-            return jsonify(dict(jogo[0])), 200 
+        jogo = Jogo.query.get(id)
+
+        if jogo:
+            return jsonify({
+                "id": jogo.id,
+                "jogo": jogo.jogo,
+                "autor": jogo.autor,
+                "ano": jogo.ano,
+                "preco": jogo.preco,
+            }), 200
+
         return jsonify({"erro": "Jogo não encontrado"}), 404
 
-    jogo = executar_query("SELECT id, jogo, autor, ano, preco, data_cadastro FROM jogos", fetch=True)
-    lista_jogos = [dict(item) for item in jogo]
+    # Listagem usando ORM
+    jogos = Jogo.query.all()
+
+    lista_jogos = [{
+        "id": j.id,
+        "jogo": j.jogo,
+        "autor": j.autor,
+        "ano": j.ano,
+        "preco": j.preco,
+    } for j in jogos]
+
     return jsonify(lista_jogos), 200
 
-"""POST (Inserir): Receber um JSON e salvar no banco (com status 201).""" 
- 
-@app.route('/adicionarjogo', methods=['POST'])
 
-def adicionar_jogo():
-    jogos = request.get_json()
-
-    executar_query(
-        "INSERT INTO jogos (jogo, autor, ano, preco ) VALUES (?, ?, ?, ?)",
-        
-            jogos.get('jogo'), 
-            jogos.get('autor'), 
-            jogos.get('ano'), 
-            jogos.get('preco'), 
-            commit=True
-    )
-    return jsonify({"mensagem": "Jogo adicionado com sucesso!"}), 201
-
-"""PUT (Atualizar): Alterar dados de um registro existente via ID (status 204). """
-
-@app.route('/jogos/<int:id>', methods=['PUT'])
-def atualizar_jogo(id): 
+# POST 
+@app.route('/insert', methods=['POST'])
+def criar_jogo():
     dados = request.get_json()
-    
-    existe = executar_query(
-        "SELECT id FROM jogos WHERE id = ?",
-        id,
-        fetch=True
+
+    # Inserção de registro usando ORM
+    novo_jogo = Jogo(
+        jogo = dados.get('jogo'),
+        autor = dados.get('autor'),
+        ano = dados.get('ano'),
+        preco = dados.get('preco')
     )
 
-    if not existe:
-        return jsonify({"erro": "Jogo não encontrado"}), 404
+    db.session.add(novo_jogo)
+    db.session.commit()
 
-    executar_query(
-        "UPDATE jogos SET jogo = ?, autor = ?, ano = ?, preco = ? WHERE id = ?",
-            dados.get('jogo'), 
-            dados.get('autor'), 
-            dados.get('ano'),
-            dados.get('preco'), 
-            id,
-            commit=True
-    )
+    return jsonify({"mensagem": "Jogo criado com sucesso!"}), 201
 
-    return jsonify({"mensagem": "Jogo atualizado com sucesso!"}), 200
 
-""" DELETE (Remover): Excluir um registro do banco via ID. """
+# PUT 
+@app.route('/update/<int:id>', methods=['PUT'])
+def atualizar_jogo(id):
+    dados = request.get_json()
 
-@app.route('/jogos/<int:id>', methods=['DELETE'])
-
-def deletar_jogo(id):
-    jogo = executar_query("SELECT jogo FROM jogos WHERE id = ?", id, fetch=True)
-    
+    jogo = Jogo.query.get(id)
     if not jogo:
         return jsonify({"erro": "Jogo não encontrado"}), 404
 
-    executar_query("DELETE FROM jogos WHERE id = ?", id, commit=True)
-    return jsonify({"mensagem": f"Jogo '{jogo[0]['jogo']}' removido!"}), 200
+    # Alteração de registro usando ORM
 
-if __name__ == '__main__': 
+    jogo.jogo = dados.get('jogo')
+    jogo.autor = dados.get('autor')
+    jogo.ano = dados.get('ano')
+    jogo.preco = dados.get('preco')
+
+    db.session.commit()
+
+    return jsonify({"mensagem": "Jogo atualizado com sucesso!"}), 200
+
+# DELETE
+@app.route('/delete/<int:id>', methods=['DELETE'])
+def deletar_jogo(id):
+    jogo = Jogo.query.get(id)
+
+    if not jogo:
+        return jsonify({"erro": "Jogo não encontrado"}), 404
+
+    # Eliminação de registro usando ORM
+
+    db.session.delete(jogo)
+    db.session.commit()
+
+    return jsonify({"mensagem": f"Jogo '{jogo.jogo}' removido!"}), 200
+
+if __name__ == '__main__':
     app.run(debug=True)
-
